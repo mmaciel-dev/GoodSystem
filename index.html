@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoodSystem Requirements Analyzer</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="login-page">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="logo">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                            <rect width="48" height="48" rx="8" fill="#003366"/>
+                            <path d="M24 12L34 18V30L24 36L14 30V18L24 12Z" fill="#00CC66"/>
+                        </svg>
+                    </div>
+                    <h1>GoodSystem</h1>
+                    <p>Requirements Analyzer</p>
+                </div>
+                
+                <form id="login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" value="dev@jit.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input type="password" id="password" name="password" value="123456" required>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="remember" name="remember" checked>
+                        <label for="remember">Lembrar-me</label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">Entrar</button>
+                    
+                    <div class="login-footer">
+                        <a href="#">Esqueceu a senha?</a>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="login-info">
+                <h2>Sistema de Análise de Requisitos</h2>
+                <ul>
+                    <li>✓ Gestão completa de requisitos</li>
+                    <li>✓ Fluxo de aprovação integrado</li>
+                    <li>✓ Rastreabilidade em tempo real</li>
+                    <li>✓ Relatórios e dashboards analíticos</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PAGE -->
+    <div id="dashboard-page" class="dashboard-page" style="display: none;">
+        
+        <!-- Navbar -->
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="8" fill="#003366"/>
+                    <path d="M24 12L34 18V30L24 36L14 30V18L24 12Z" fill="#00CC66"/>
+                </svg>
+                <span>GoodSystem</span>
+            </div>
+            
+            <div class="navbar-menu">
+                <a href="#" class="navbar-item active" data-page="requirements">Requisitos</a>
+                <a href="#" class="navbar-item" data-page="approval">Aprovações</a>
+                <a href="#" class="navbar-item" data-page="reports">Relatórios</a>
+            </div>
+            
+            <div class="navbar-actions">
+                <button class="btn-icon" id="notifications-btn">
+                    <span class="notification-badge">3</span>
+                    🔔
+                </button>
+                <div class="user-menu">
+                    <img src="https://i.pravatar.cc/40?img=1" alt="User" class="user-avatar">
+                    <span>João Silva</span>
+                    <button class="btn-icon" id="logout-btn">⎋</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Filtros</h3>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filter-status" class="select">
+                        <option value="">Todos</option>
+                        <option value="draft">Rascunho</option>
+                        <option value="pending">Pendente</option>
+                        <option value="approved">Aprovado</option>
+                        <option value="rejected">Rejeitado</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Prioridade</label>
+                    <select id="filter-priority" class="select">
+                        <option value="">Todas</option>
+                        <option value="high">Alta</option>
+                        <option value="medium">Média</option>
+                        <option value="low">Baixa</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Sprint</label>
+                    <select id="filter-sprint" class="select">
+                        <option value="">Todas</option>
+                        <option value="sprint-12">Sprint 12</option>
+                        <option value="sprint-13">Sprint 13</option>
+                        <option value="sprint-14">Sprint 14</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-secondary btn-sm btn-block" id="clear-filters">Limpar Filtros</button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3>Estatísticas</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-total">0</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-pending">0</span>
+                        <span class="stat-label">Pendentes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-approved">0</span>
+                        <span class="stat-label">Aprovados</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Requisitos do Sistema</h1>
+                <button class="btn btn-primary" id="new-requirement-btn">+ Novo Requisito</button>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Buscar requisitos..." class="search-input">
+                <button class="btn btn-secondary" id="search-btn">🔍 Buscar</button>
+            </div>
+            
+            <div id="requirements-grid" class="requirements-grid">
+                <!-- Requirements cards will be inserted here by JavaScript -->
+            </div>
+            
+            <div class="pagination" id="pagination">
+                <!-- Pagination will be inserted here by JavaScript -->
+            </div>
+        </main>
+
+    </div>
+
+    <!-- NEW REQUIREMENT MODAL -->
+    <div id="new-requirement-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Novo Requisito</h2>
+                <button class="btn-close" data-modal="new-requirement-modal">×</button>
+            </div>
+            
+            <form id="new-requirement-form" class="modal-body">
+                <div class="form-row">
+                    <div class="form-group col-8">
+                        <label for="req-title">Título *</label>
+                        <input type="text" id="req-title" name="title" required>
+                        <span class="char-count">0/120</span>
+                    </div>
+                    
+                    <div class="form-group col-4">
+                        <label for="req-type">Tipo *</label>
+                        <select id="req-type" name="type" class="select" required>
+                            <option value="">Selecione</option>
+                            <option value="functional">Funcional</option>
+                            <option value="non-functional">Não Funcional</option>
+                            <option value="technical">Técnico</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="req-description">Descrição *</label>
+                    <textarea id="req-description" name="description" rows="5" required></textarea>
+                    <span class="char-count">0/1000</span>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="req-priority">Prioridade *</label>
+                        <select id="req-priority" name="priority" class="select" required>
+                            <option value="">Selecione</option>
+                            <option value="high">Alta</option>
+                            <option value="medium">Média</option>
+                            <option value="low">Baixa</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group col-4">
+                        <label for="req-sprint">Sprint</label>
+                        <select id="req-sprint" name="sprint" class="select">
+                            <option value="">Não atribuído</option>
+                            <option value="sprint-12">Sprint 12</option>
+                            <option value="sprint-13">Sprint 13</option>
+                            <option value="sprint-14">Sprint 14</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group col-4">
+                        <label for="req-assignee">Responsável</label>
+                        <select id="req-assignee" name="assignee" class="select">
+                            <option value="">Não atribuído</option>
+                            <option value="user-1">João Silva</option>
+                            <option value="user-2">Maria Santos</option>
+                            <option value="user-3">Pedro Oliveira</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="req-tags">Tags</label>
+                    <input type="text" id="req-tags" name="tags" placeholder="Ex: backend, api, security">
+                    <small>Separe as tags com vírgula</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="req-attachments">Anexos</label>
+                    <input type="file" id="req-attachments" name="attachments" multiple>
+                </div>
+            </form>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal="new-requirement-modal">Cancelar</button>
+                <button type="submit" form="new-requirement-form" class="btn btn-primary">Criar Requisito</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DETAIL VIEW MODAL -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2 id="detail-title">REQ-001: Sistema de Login</h2>
+                <button class="btn-close" data-modal="detail-modal">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab active" data-tab="info">Informações</button>
+                    <button class="tab" data-tab="comments">Comentários <span class="badge">5</span></button>
+                    <button class="tab" data-tab="history">Histórico</button>
+                    <button class="tab" data-tab="attachments">Anexos <span class="badge">2</span></button>
+                </div>
+                
+                <div class="tab-content">
+                    <!-- Info Tab -->
+                    <div id="tab-info" class="tab-pane active">
+                        <div id="detail-content">
+                            <!-- Content will be loaded by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Comments Tab -->
+                    <div id="tab-comments" class="tab-pane">
+                        <div id="comments-list">
+                            <!-- Comments will be loaded by JavaScript -->
+                        </div>
+                        <div class="comment-form">
+                            <textarea id="new-comment" placeholder="Adicionar comentário..." rows="3"></textarea>
+                            <button class="btn btn-primary btn-sm">Enviar</button>
+                        </div>
+                    </div>
+                    
+                    <!-- History Tab -->
+                    <div id="tab-history" class="tab-pane">
+                        <div id="history-list">
+                            <!-- History will be loaded by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Attachments Tab -->
+                    <div id="tab-attachments" class="tab-pane">
+                        <div id="attachments-list">
+                            <!-- Attachments will be loaded by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <span class="stub-note">Edição e download de anexos são simulações neste protótipo</span>
+                <button type="button" class="btn btn-secondary" data-modal="detail-modal">Fechar</button>
+                <button type="button" class="btn btn-warning" id="edit-requirement-btn">✏️ Editar</button>
+                <button type="button" class="btn btn-danger" id="delete-requirement-btn">🗑️ Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
