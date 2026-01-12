@@ -78,6 +78,7 @@
             
             <div class="navbar-menu">
                 <a href="#" class="navbar-item active" data-page="requirements">Requisitos</a>
+                <a href="#" class="navbar-item" data-page="kanban">Kanban</a>
                 <a href="#" class="navbar-item" data-page="approval">Aprovações</a>
                 <a href="#" class="navbar-item" data-page="reports">Relatórios</a>
             </div>
@@ -208,8 +209,13 @@
                     <textarea id="req-description" name="description" rows="5" required></textarea>
                     <span class="char-count">0/1000</span>
                 </div>
-                
-                <div class="form-row">
+                                <div class="form-group">
+                    <label for="req-user-story">História de Usuário</label>
+                    <textarea id="req-user-story" name="userStory" rows="3" placeholder="Como [papel], eu quero [ação], para que [benefício]"></textarea>
+                    <span class="char-count">0/500</span>
+                    <small>Formato sugerido: Como [papel], eu quero [ação], para que [benefício]</small>
+                </div>
+                                <div class="form-row">
                     <div class="form-group col-4">
                         <label for="req-priority">Prioridade *</label>
                         <select id="req-priority" name="priority" class="select" required>

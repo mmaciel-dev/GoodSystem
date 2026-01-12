@@ -14,6 +14,7 @@ let currentPage = 1;
 const itemsPerPage = 9;
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 1000;
+const USER_STORY_MAX_LENGTH = 500;
 let filteredRequirements = [...requirements];
 
 // ===========================
@@ -180,13 +181,16 @@ function switchView(view) {
     // Show/hide search bar based on view
     const searchBar = document.querySelector('.search-bar');
     if (searchBar) {
-        searchBar.style.display = view === 'requirements' ? 'flex' : 'none';
+        searchBar.style.display = (view === 'requirements' || view === 'kanban') ? 'flex' : 'none';
     }
     
     // Render appropriate view
     switch(view) {
         case 'requirements':
             renderDashboard();
+            break;
+        case 'kanban':
+            renderKanbanView();
             break;
         case 'approval':
             renderApprovalView();
@@ -280,6 +284,144 @@ function createRequirementCard(req) {
     `;
     
     return card;
+}
+
+// ===========================
+// KANBAN VIEW
+// ===========================
+function renderKanbanView() {
+    updateContentHeader('Visualização Kanban', true);
+    applyFilters();
+    updateStats();
+    
+    const grid = document.getElementById('requirements-grid');
+    if (!grid) return;
+    
+    // Hide pagination for kanban view
+    const pagination = document.getElementById('pagination');
+    if (pagination) pagination.style.display = 'none';
+    
+    // Change grid to kanban board layout
+    grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+    grid.style.gap = '1rem';
+    grid.innerHTML = '';
+    
+    // Define status columns
+    const columns = [
+        { id: 'draft', label: 'Rascunho', color: 'gray' },
+        { id: 'pending', label: 'Pendente', color: 'warning' },
+        { id: 'approved', label: 'Aprovado', color: 'success' },
+        { id: 'rejected', label: 'Rejeitado', color: 'danger' }
+    ];
+    
+    // Create kanban columns
+    columns.forEach(column => {
+        const columnReqs = filteredRequirements.filter(req => req.status === column.id);
+        const columnElement = createKanbanColumn(column, columnReqs);
+        grid.appendChild(columnElement);
+    });
+}
+
+function createKanbanColumn(column, requirements) {
+    const columnDiv = document.createElement('div');
+    columnDiv.className = 'kanban-column';
+    columnDiv.setAttribute('data-status', column.id);
+    
+    columnDiv.innerHTML = `
+        <div class="kanban-column-header">
+            <h3>${column.label}</h3>
+            <span class="badge badge-${column.color}">${requirements.length}</span>
+        </div>
+        <div class="kanban-column-body" data-status="${column.id}">
+            ${requirements.length === 0 ? 
+                '<p class="kanban-empty">Nenhum requisito</p>' : 
+                requirements.map(req => createKanbanCard(req)).join('')
+            }
+        </div>
+    `;
+    
+    return columnDiv;
+}
+
+function createKanbanCard(req) {
+    const assignee = req.assignee ? getUserById(req.assignee) : null;
+    const sprint = req.sprint ? getSprintById(req.sprint) : null;
+    
+    return `
+        <div class="kanban-card" data-req-id="${req.id}" onclick="openRequirementDetail('${req.id}')">
+            <div class="kanban-card-header">
+                <span class="kanban-card-id">${req.id}</span>
+                <span class="badge badge-${req.priority}">${getPriorityLabel(req.priority)}</span>
+            </div>
+            <h4 class="kanban-card-title">${req.title}</h4>
+            ${req.userStory ? `<p class="kanban-card-user-story">📖 ${req.userStory.substring(0, 80)}${req.userStory.length > 80 ? '...' : ''}</p>` : ''}
+            <div class="kanban-card-meta">
+                ${sprint ? `<span class="tag">${sprint.name}</span>` : ''}
+                ${req.tags.slice(0, 1).map(tag => `<span class="tag">${tag}</span>`).join('')}
+            </div>
+            <div class="kanban-card-footer">
+                ${assignee ? `
+                    <img src="${assignee.avatar}" alt="${assignee.name}" class="kanban-avatar">
+                ` : '<span class="text-gray-small">N/A</span>'}
+                <div class="kanban-card-info">
+                    <span>💬 ${req.commentsCount}</span>
+                    <span>📎 ${req.attachmentsCount}</span>
+                </div>
+            </div>
+            <button class="kanban-move-btn" onclick="event.stopPropagation(); showMoveMenu('${req.id}', '${req.status}')">
+                ⋮
+            </button>
+        </div>
+    `;
+}
+
+function showMoveMenu(reqId, currentStatus) {
+    const statuses = [
+        { id: 'draft', label: 'Rascunho' },
+        { id: 'pending', label: 'Pendente' },
+        { id: 'approved', label: 'Aprovado' },
+        { id: 'rejected', label: 'Rejeitado' }
+    ];
+    
+    const options = statuses
+        .filter(s => s.id !== currentStatus)
+        .map(s => s.label)
+        .join('\n');
+    
+    const choice = prompt(`Mover requisito para:\n\n${options}\n\nDigite o número:\n1 - Rascunho\n2 - Pendente\n3 - Aprovado\n4 - Rejeitado`);
+    
+    if (choice) {
+        const statusMap = { '1': 'draft', '2': 'pending', '3': 'approved', '4': 'rejected' };
+        const newStatus = statusMap[choice];
+        
+        if (newStatus && newStatus !== currentStatus) {
+            moveRequirementStatus(reqId, newStatus);
+        }
+    }
+}
+
+function moveRequirementStatus(reqId, newStatus) {
+    const req = requirements.find(r => r.id === reqId);
+    if (!req) return;
+    
+    const oldStatus = req.status;
+    req.status = newStatus;
+    req.updatedAt = new Date().toISOString();
+    
+    // Add to audit log
+    if (!auditLog[reqId]) auditLog[reqId] = [];
+    auditLog[reqId].push({
+        id: `audit-${Date.now()}`,
+        action: 'status_changed',
+        user: currentUser.id,
+        details: `Status alterado de ${getStatusLabel(oldStatus)} para ${getStatusLabel(newStatus)}`,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Refresh kanban view
+    renderKanbanView();
+    
+    showToast('success', 'Status atualizado', `${reqId} movido para ${getStatusLabel(newStatus)}`);
 }
 
 // ===========================
@@ -917,6 +1059,14 @@ function loadDetailInfo(req) {
             <div class="detail-label">Descrição</div>
             <div class="detail-value">${req.description}</div>
         </div>
+        ${req.userStory ? `
+        <div class="detail-row">
+            <div class="detail-label">📖 História de Usuário</div>
+            <div class="detail-value" style="background: var(--gray-50); padding: 1rem; border-radius: var(--radius-md); border-left: 3px solid var(--accent); font-style: italic;">
+                ${req.userStory}
+            </div>
+        </div>
+        ` : ''}
         <div class="detail-row">
             <div class="detail-label">Tags</div>
             <div class="detail-value">
@@ -1094,6 +1244,7 @@ function handleCreateRequirement(e) {
     const formData = new FormData(e.target);
     const title = formData.get('title');
     const description = formData.get('description');
+    const userStory = formData.get('userStory');
     
     // Validações (RNF-2: Resposta <3s)
     if (!title || title.length < 5) {
@@ -1116,10 +1267,16 @@ function handleCreateRequirement(e) {
         return;
     }
     
+    if (userStory && userStory.length > 500) {
+        showToast('error', 'História de usuário muito longa', 'História de usuário deve ter no máximo 500 caracteres');
+        return;
+    }
+    
     const newReq = {
         id: getNextRequirementId(),
         title: title,
         description: description,
+        userStory: userStory || null,
         type: formData.get('type'),
         status: 'draft',
         priority: formData.get('priority'),
@@ -1151,8 +1308,10 @@ function handleCreateRequirement(e) {
     // Reset character counters
     const titleCounter = document.querySelector('#req-title + .char-count');
     const descCounter = document.querySelector('#req-description + .char-count');
+    const userStoryCounter = document.querySelector('#req-user-story + .char-count');
     if (titleCounter) titleCounter.textContent = `0/${TITLE_MAX_LENGTH}`;
     if (descCounter) descCounter.textContent = `0/${DESCRIPTION_MAX_LENGTH}`;
+    if (userStoryCounter) userStoryCounter.textContent = `0/${USER_STORY_MAX_LENGTH}`;
     
     if (currentView === 'requirements') {
         renderDashboard();
@@ -1195,6 +1354,7 @@ function deleteRequirement(reqId) {
 function setupCharacterCounters() {
     const titleInput = document.getElementById('req-title');
     const descInput = document.getElementById('req-description');
+    const userStoryInput = document.getElementById('req-user-story');
     
     if (titleInput) {
         titleInput.addEventListener('input', (e) => {
@@ -1220,6 +1380,23 @@ function setupCharacterCounters() {
                 counter.textContent = `${e.target.value.length}/${DESCRIPTION_MAX_LENGTH}`;
                 // Mudar cor se exceder limite
                 if (e.target.value.length > DESCRIPTION_MAX_LENGTH) {
+                    counter.style.color = 'var(--danger)';
+                    e.target.style.borderColor = 'var(--danger)';
+                } else {
+                    counter.style.color = 'var(--gray-500)';
+                    e.target.style.borderColor = 'var(--gray-300)';
+                }
+            }
+        });
+    }
+    
+    if (userStoryInput) {
+        userStoryInput.addEventListener('input', (e) => {
+            const counter = e.target.nextElementSibling;
+            if (counter && counter.classList.contains('char-count')) {
+                counter.textContent = `${e.target.value.length}/${USER_STORY_MAX_LENGTH}`;
+                // Mudar cor se exceder limite
+                if (e.target.value.length > USER_STORY_MAX_LENGTH) {
                     counter.style.color = 'var(--danger)';
                     e.target.style.borderColor = 'var(--danger)';
                 } else {
