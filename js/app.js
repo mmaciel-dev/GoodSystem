@@ -1,5 +1,5 @@
 // ===========================
-// APPLICATION STATE
+// APPLICATION STATE & STORAGE
 // ===========================
 let currentUser = null;
 let currentView = 'requirements'; // requirements, approval, reports
@@ -18,6 +18,44 @@ const USER_STORY_MAX_LENGTH = 500;
 let filteredRequirements = [...requirements];
 
 // ===========================
+// STORAGE UTILITIES (RNF-4: Auto-save & Versioning)
+// ===========================
+const STORAGE_KEY_REQUIREMENTS = 'goodsystem_requirements';
+const STORAGE_KEY_AUDIT_LOG = 'goodsystem_audit_log';
+const STORAGE_KEY_COMMENTS = 'goodsystem_comments';
+
+function loadDataFromStorage() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY_REQUIREMENTS);
+        if (stored) {
+            requirements = JSON.parse(stored);
+            filteredRequirements = [...requirements];
+            console.log('✓ Requirements loaded from localStorage');
+        }
+    } catch (error) {
+        console.error('Error loading from localStorage:', error);
+    }
+}
+
+function saveDataToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_REQUIREMENTS, JSON.stringify(requirements));
+        console.log('✓ Requirements saved to localStorage');
+    } catch (error) {
+        console.error('Error saving to localStorage:', error);
+        showToast('warning', 'Aviso', 'Não foi possível salvar dados localmente');
+    }
+}
+
+function saveAuditLog() {
+    try {
+        localStorage.setItem(STORAGE_KEY_AUDIT_LOG, JSON.stringify(auditLog));
+    } catch (error) {
+        console.error('Error saving audit log:', error);
+    }
+}
+
+// ===========================
 // INITIALIZATION
 // ===========================
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
+    // Load persisted data from localStorage (RNF-4)
+    loadDataFromStorage();
+    
     // Set current user
     currentUser = users[0]; // João Silva as default user
     
@@ -83,6 +124,9 @@ function initializeApp() {
     
     // Setup tabs
     setupTabs();
+    
+    // Setup edit form
+    setupEditForm();
 }
 
 // ===========================
@@ -105,10 +149,18 @@ function handleLogin(e) {
         return;
     }
     
-    // Simple validation (in production, this would be server-side)
+    // Find user by email (case-insensitive)
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (!user) {
+        showToast('error', 'Acesso negado', 'Email ou senha incorretos');
+        return;
+    }
+    
+    // In production: verify password hash (bcrypt)
+    // For prototype: accept any password >= 6 chars
     if (email && password) {
-        // Define usuário baseado no email
-        currentUser = users.find(u => u.email.includes(email.split('@')[0])) || users[0];
+        currentUser = user;
         
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('dashboard-page').style.display = 'grid';
@@ -418,6 +470,10 @@ function moveRequirementStatus(reqId, newStatus) {
         timestamp: new Date().toISOString()
     });
     
+    // Save to localStorage (RNF-4: Persistência)
+    saveDataToStorage();
+    saveAuditLog();
+    
     // Refresh kanban view
     renderKanbanView();
     
@@ -564,18 +620,26 @@ function handleApproval(reqId, action) {
         timestamp: new Date().toISOString()
     });
     
-    // Show notification (RN-5: Notificações)
-    const actionLabel = action === 'approved' ? 'aprovado' : 'rejeitado';
-    const actionType = action === 'approved' ? 'success' : 'error';
-    showToast(actionType, 
-        `Requisito ${actionLabel}!`, 
-        `${req.id} foi ${actionLabel} com sucesso. Equipe será notificada.`);
+    // Save to localStorage (RNF-4: Persistência)
+    saveDataToStorage();
+    saveAuditLog();
+    
+    // Close detail modal
+    closeModal('detail-modal');
+    
+    // Show rejection details modal if rejected
+    if (action === 'rejected') {
+        showRejectionDetails(reqId);
+    } else {
+        // Show notification for approval
+        const actionLabel = 'aprovado';
+        showToast('success', 
+            `Requisito ${actionLabel}!`, 
+            `${req.id} foi ${actionLabel} com sucesso. Equipe será notificada.`);
+    }
     
     // Reload view
     renderApprovalView();
-    
-    // Close modal if open
-    closeModal('detail-modal');
 }
 
 // ===========================
@@ -753,13 +817,13 @@ function renderReportsView() {
             </div>
             
             <div style="margin-top: 2rem; text-align: center;">
-                <button class="btn btn-primary" onclick="showToast('info', 'Exportação', 'Funcionalidade de exportação PDF em desenvolvimento')">
+                <button class="btn btn-primary" onclick="exportReportPDF()">
                     📄 Exportar Relatório (PDF)
                 </button>
-                <button class="btn btn-secondary" onclick="showToast('info', 'Exportação', 'Funcionalidade de exportação CSV em desenvolvimento')">
+                <button class="btn btn-secondary" onclick="exportReportCSV()">
                     📊 Exportar Dados (CSV)
                 </button>
-                <div class="stub-note" style="margin-top: 0.75rem; justify-content: center;">Exportação é apenas demonstrativa neste protótipo</div>
+                <div class="stub-note" style="margin-top: 0.75rem; justify-content: center;">Exportação em formato CSV ou JSON está disponível</div>
             </div>
         </div>
     `;
@@ -999,7 +1063,7 @@ function setupDetailActions(req) {
     
     if (editBtn) {
         editBtn.onclick = () => {
-            showToast('info', 'Modo Edição', 'Funcionalidade de edição inline em desenvolvimento');
+            openEditModal(req.id);
         };
     }
     
@@ -1302,6 +1366,10 @@ function handleCreateRequirement(e) {
         timestamp: new Date().toISOString()
     }];
     
+    // Save to localStorage (RNF-4: Versionamento Automático)
+    saveDataToStorage();
+    saveAuditLog();
+    
     closeModal('new-requirement-modal');
     e.target.reset();
     
@@ -1531,4 +1599,439 @@ function getFileIcon(type) {
     if (type === 'application/pdf') return '📄';
     if (type === 'application/json') return '📋';
     return '📎';
+}
+
+// ===========================
+// EXPORT FUNCTIONS (RNF-4: Relatórios)
+// ===========================
+function exportReportCSV() {
+    // Header
+    let csv = 'ID,Título,Descrição,Tipo,Status,Prioridade,Sprint,Responsável,Criado Em,Atualizado Em,Versão\n';
+    
+    // Data rows
+    requirements.forEach(req => {
+        const assignee = req.assignee ? users.find(u => u.id === req.assignee)?.name || 'N/A' : 'Não atribuído';
+        const sprint = req.sprint ? req.sprint : 'Sem Sprint';
+        const row = [
+            `"${req.id}"`,
+            `"${req.title.replace(/"/g, '""')}"`,
+            `"${req.description.replace(/"/g, '""').substring(0, 100)}"`,
+            `"${req.type}"`,
+            `"${req.status}"`,
+            `"${req.priority}"`,
+            `"${sprint}"`,
+            `"${assignee}"`,
+            `"${new Date(req.createdAt).toLocaleString('pt-BR')}"`,
+            `"${new Date(req.updatedAt).toLocaleString('pt-BR')}"`,
+            `"${req.version}"`
+        ];
+        csv += row.join(',') + '\n';
+    });
+    
+    // Create blob and download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `goodsystem-relatorio-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('success', 'Exportação concluída', 'Relatório CSV exportado com sucesso');
+}
+
+function exportReportPDF() {
+    // PDF export using browser print dialog
+    // Alternative: Use library like jsPDF for advanced features
+    
+    const printWindow = window.open('', '', 'width=800,height=600');
+    
+    // Build HTML content
+    let htmlContent = `
+    <html>
+    <head>
+        <title>GoodSystem - Relatório de Requisitos</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 2rem; color: #333; }
+            h1 { color: #003366; border-bottom: 2px solid #00CC66; padding-bottom: 0.5rem; }
+            h2 { color: #003366; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+            th { background-color: #003366; color: white; padding: 0.75rem; text-align: left; }
+            td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
+            .metric-card { background-color: #f5f5f5; padding: 1rem; border-radius: 4px; text-align: center; }
+            .metric-value { font-size: 2rem; font-weight: bold; color: #003366; }
+            .metric-label { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
+            .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; font-size: 0.9rem; color: #999; }
+        </style>
+    </head>
+    <body>
+        <h1>GoodSystem Requirements Analyzer</h1>
+        <p><strong>Data do Relatório:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+        <p><strong>Gerado por:</strong> ${currentUser.name}</p>
+        
+        <h2>Métricas Gerais</h2>
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value">${requirements.length}</div>
+                <div class="metric-label">Total de Requisitos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${requirements.filter(r => r.status === 'approved').length}</div>
+                <div class="metric-label">Aprovados</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${requirements.filter(r => r.status === 'pending').length}</div>
+                <div class="metric-label">Pendentes</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${requirements.filter(r => r.status === 'rejected').length}</div>
+                <div class="metric-label">Rejeitados</div>
+            </div>
+        </div>
+        
+        <h2>Requisitos por Status</h2>
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Status</th>
+                <th>Prioridade</th>
+                <th>Responsável</th>
+            </tr>
+    `;
+    
+    // Add requirements to table
+    requirements.forEach(req => {
+        const assignee = req.assignee ? users.find(u => u.id === req.assignee)?.name || 'N/A' : 'Não atribuído';
+        htmlContent += `
+            <tr>
+                <td>${req.id}</td>
+                <td>${req.title}</td>
+                <td>${req.status}</td>
+                <td>${req.priority}</td>
+                <td>${assignee}</td>
+            </tr>
+        `;
+    });
+    
+    htmlContent += `
+        </table>
+        <div class="footer">
+            <p>Relatório gerado automaticamente pelo GoodSystem Requirements Analyzer</p>
+            <p>© 2026 JIT Technology. Todos os direitos reservados.</p>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.print();
+    
+    showToast('success', 'Relatório pronto para imprimir', 'Use Ctrl+P ou File > Print para salvar como PDF');
+}
+
+// ===========================
+// EXTERNAL INTEGRATIONS (Phase 2.0)
+// ===========================
+// Interface 1: GitHub API
+const GitHubIntegration = {
+    enabled: false,
+    baseURL: 'https://api.github.com',
+    description: 'Integração com GitHub para referenciar commits, issues e PRs nos requisitos',
+    features: [
+        'Vincular commits a requisitos',
+        'Referenciar issues do GitHub',
+        'Rastrear PRs relacionadas',
+        'Sincronizar status automaticamente'
+    ],
+    async linkCommit(reqId, commitSha) {
+        console.log('🔗 [GitHub] Linking commit', commitSha, 'to requirement', reqId);
+        showToast('info', 'GitHub', 'Integração GitHub será disponibilizada em v2.0');
+        // TODO: Implementar com GitHub API + OAuth
+    }
+};
+
+// Interface 2: Slack API
+const SlackIntegration = {
+    enabled: false,
+    baseURL: 'https://hooks.slack.com/services',
+    description: 'Notificações automáticas sobre atualizações, comentários ou aprovações',
+    features: [
+        'Notificações de aprovação',
+        'Alertas de requisitos críticos',
+        'Atualizações em tempo real',
+        'Integração com canais dedicados'
+    ],
+    async sendNotification(channel, message) {
+        console.log('📢 [Slack] Sending notification to', channel);
+        showToast('info', 'Slack', 'Integração Slack será disponibilizada em v2.0');
+        // TODO: Implementar com Slack Webhooks
+    }
+};
+
+// Interface 3: SendGrid (Email Service)
+const SendGridIntegration = {
+    enabled: false,
+    baseURL: 'https://api.sendgrid.com/v3',
+    description: 'Emails para aprovações, relatórios e alertas',
+    features: [
+        'Email de aprovação de requisitos',
+        'Notificações de mudanças de status',
+        'Envio de relatórios automatizados',
+        'Alertas para requisitos vencidos'
+    ],
+    async sendEmail(to, subject, template) {
+        console.log('📧 [SendGrid] Sending email to', to);
+        showToast('info', 'Email', 'Integração SendGrid será disponibilizada em v2.0');
+        // TODO: Implementar com SendGrid API
+    }
+};
+
+// Interface 4: GitLab API
+const GitLabIntegration = {
+    enabled: false,
+    baseURL: 'https://gitlab.com/api/v4',
+    description: 'Similar ao GitHub, para ambientes alternativos',
+    features: [
+        'Vincular commits GitLab',
+        'Referenciar issues GitLab',
+        'Rastrear MRs (Merge Requests)',
+        'Sincronizar com projetos GitLab'
+    ],
+    async linkMergeRequest(reqId, mrId) {
+        console.log('🔗 [GitLab] Linking MR', mrId, 'to requirement', reqId);
+        showToast('info', 'GitLab', 'Integração GitLab será disponibilizada em v2.0');
+        // TODO: Implementar com GitLab API
+    }
+};
+
+// Integration status display
+function showIntegrationStatus() {
+    console.log('═════════════════════════════════════════');
+    console.log('📡 INTEGRATIONS STATUS (v2.0)');
+    console.log('═════════════════════════════════════════');
+    console.log('✓ GitHub API:', GitHubIntegration.enabled ? 'ATIVO' : 'PLANEJADO');
+    console.log('✓ Slack API:', SlackIntegration.enabled ? 'ATIVO' : 'PLANEJADO');
+    console.log('✓ SendGrid:', SendGridIntegration.enabled ? 'ATIVO' : 'PLANEJADO');
+    console.log('✓ GitLab API:', GitLabIntegration.enabled ? 'ATIVO' : 'PLANEJADO');
+    console.log('═════════════════════════════════════════');
+}
+
+// ===========================
+// EDIT REQUIREMENT MODAL (Fluxo 6: Edição e Rejeição)
+// ===========================
+let currentEditReqId = null;
+let currentRejectionReqId = null;
+
+function openEditModal(reqId) {
+    const req = requirements.find(r => r.id === reqId);
+    if (!req) return;
+    
+    currentEditReqId = reqId;
+    
+    // Fill form fields
+    document.getElementById('edit-req-id').value = req.id;
+    document.getElementById('edit-req-status').value = getStatusLabel(req.status);
+    document.getElementById('edit-req-version').value = req.version || '1.0';
+    
+    document.getElementById('edit-req-title').value = req.title;
+    document.getElementById('edit-req-description').value = req.description;
+    document.getElementById('edit-req-user-story').value = req.userStory || '';
+    document.getElementById('edit-req-type').value = req.type;
+    document.getElementById('edit-req-priority').value = req.priority;
+    document.getElementById('edit-req-sprint').value = req.sprint || '';
+    document.getElementById('edit-req-assignee').value = req.assignee || '';
+    document.getElementById('edit-req-tags').value = Array.isArray(req.tags) ? req.tags.join(', ') : (req.tags || '');
+    
+    // Update char counters
+    updateEditCharCounter(document.getElementById('edit-req-title'), 120);
+    updateEditCharCounter(document.getElementById('edit-req-description'), 1000);
+    updateEditCharCounter(document.getElementById('edit-req-user-story'), 500);
+    
+    openModal('edit-requirement-modal');
+}
+
+function updateEditCharCounter(inputElement, maxLength) {
+    if (!inputElement) return;
+    
+    const countSpan = inputElement.parentElement.querySelector('.char-count');
+    if (countSpan) {
+        countSpan.textContent = `${inputElement.value.length}/${maxLength}`;
+    }
+}
+
+function handleEditRequirement(e) {
+    e.preventDefault();
+    
+    const titleInput = document.getElementById('edit-req-title');
+    const descriptionInput = document.getElementById('edit-req-description');
+    
+    // Validations
+    if (!titleInput.value || titleInput.value.trim().length < 5) {
+        showToast('error', 'Validação', 'Título deve ter no mínimo 5 caracteres');
+        return;
+    }
+    
+    if (!descriptionInput.value || descriptionInput.value.trim().length < 20) {
+        showToast('error', 'Validação', 'Descrição deve ter no mínimo 20 caracteres');
+        return;
+    }
+    
+    // Find requirement
+    const req = requirements.find(r => r.id === currentEditReqId);
+    if (!req) return;
+    
+    // Store old values for audit log
+    const oldValues = {
+        title: req.title,
+        description: req.description,
+        userStory: req.userStory,
+        type: req.type,
+        priority: req.priority,
+        sprint: req.sprint,
+        assignee: req.assignee,
+        tags: req.tags ? req.tags.join(', ') : ''
+    };
+    
+    // Update fields
+    req.title = document.getElementById('edit-req-title').value;
+    req.description = document.getElementById('edit-req-description').value;
+    req.userStory = document.getElementById('edit-req-user-story').value;
+    req.type = document.getElementById('edit-req-type').value;
+    req.priority = document.getElementById('edit-req-priority').value;
+    req.sprint = document.getElementById('edit-req-sprint').value;
+    req.assignee = document.getElementById('edit-req-assignee').value;
+    req.tags = document.getElementById('edit-req-tags').value
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t !== '');
+    
+    // Update version
+    if (req.version) {
+        const parts = req.version.split('.');
+        parts[1] = (parseInt(parts[1] || 0) + 1).toString();
+        req.version = parts.join('.');
+    } else {
+        req.version = '1.1';
+    }
+    
+    req.updatedAt = new Date().toISOString();
+    
+    // If was rejected, change to pending for resubmission
+    const wasRejected = req.status === 'rejected';
+    if (wasRejected) {
+        req.status = 'pending';
+    }
+    
+    // Add to audit log
+    if (!auditLog[currentEditReqId]) auditLog[currentEditReqId] = [];
+    
+    const changes = [];
+    if (oldValues.title !== req.title) changes.push(`Título alterado`);
+    if (oldValues.description !== req.description) changes.push(`Descrição atualizada`);
+    if (oldValues.userStory !== req.userStory) changes.push(`História de usuário modificada`);
+    if (oldValues.type !== req.type) changes.push(`Tipo alterado para ${req.type}`);
+    if (oldValues.priority !== req.priority) changes.push(`Prioridade alterada para ${getPriorityLabel(req.priority)}`);
+    if (oldValues.sprint !== req.sprint) changes.push(`Sprint alterado`);
+    if (oldValues.assignee !== req.assignee) changes.push(`Responsável alterado`);
+    
+    auditLog[currentEditReqId].unshift({
+        id: `audit-${Date.now()}`,
+        action: 'updated',
+        user: currentUser.id,
+        details: `Requisito editado (v${req.version}): ${changes.join('; ')}${wasRejected ? ' | Resubmetido para aprovação' : ''}`,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Save to storage
+    saveDataToStorage();
+    saveAuditLog();
+    
+    // Show success message
+    const resubmitMsg = wasRejected ? ' e resubmetido para aprovação' : '';
+    showToast('success', 'Requisito atualizado!', `${req.id} foi atualizado com sucesso (v${req.version})${resubmitMsg}`);
+    
+    // Close modals
+    closeModal('edit-requirement-modal');
+    closeModal('rejection-modal');
+    
+    // Reload views
+    if (currentView === 'requirements') {
+        filterAndRenderRequirements();
+    } else if (currentView === 'approval') {
+        renderApprovalView();
+    } else if (currentView === 'kanban') {
+        renderKanbanView();
+    }
+    
+    // Reload detail modal if it's open
+    if (document.getElementById('detail-modal').style.display !== 'none') {
+        openRequirementDetail(currentEditReqId);
+    }
+}
+
+function showRejectionDetails(reqId) {
+    const req = requirements.find(r => r.id === reqId);
+    if (!req) return;
+    
+    currentRejectionReqId = reqId;
+    
+    // Find rejection comment
+    const reqComments = comments[reqId] || [];
+    const rejectionComment = reqComments.find(c => c.content.includes('❌ **Requisito rejeitado**'));
+    
+    let rejectionReason = 'Nenhum motivo foi especificado';
+    if (rejectionComment) {
+        const reasonMatch = rejectionComment.content.match(/Motivo: ([\s\S]*?)(?:\n\n|$)/);
+        if (reasonMatch) {
+            rejectionReason = reasonMatch[1].trim();
+        }
+    }
+    
+    // Fill rejection modal
+    document.getElementById('rejection-req-id').textContent = req.id;
+    document.getElementById('rejection-date').textContent = formatDate(req.updatedAt);
+    document.getElementById('rejection-reason').textContent = rejectionReason;
+    
+    openModal('rejection-modal');
+}
+
+function setupEditForm() {
+    const form = document.getElementById('edit-requirement-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', handleEditRequirement);
+    
+    // Setup char counters for edit modal
+    const titleInput = document.getElementById('edit-req-title');
+    const descriptionInput = document.getElementById('edit-req-description');
+    const userStoryInput = document.getElementById('edit-req-user-story');
+    
+    if (titleInput) {
+        titleInput.addEventListener('input', () => updateEditCharCounter(titleInput, 120));
+    }
+    
+    if (descriptionInput) {
+        descriptionInput.addEventListener('input', () => updateEditCharCounter(descriptionInput, 1000));
+    }
+    
+    if (userStoryInput) {
+        userStoryInput.addEventListener('input', () => updateEditCharCounter(userStoryInput, 500));
+    }
+}
+
+function getPriorityLabel(priority) {
+    const labels = {
+        'high': 'Alta',
+        'medium': 'Média',
+        'low': 'Baixa'
+    };
+    return labels[priority] || priority;
 }

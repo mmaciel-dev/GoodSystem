@@ -30,7 +30,7 @@
                 <form id="login-form" class="login-form">
                     <div class="form-group">
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" value="dev@jit.com" required>
+                        <input type="email" id="email" name="email" value="joao.silva@goodsystem.com" required>
                     </div>
                     
                     <div class="form-group">
@@ -323,6 +323,171 @@
                 <button type="button" class="btn btn-secondary" data-modal="detail-modal">Fechar</button>
                 <button type="button" class="btn btn-warning" id="edit-requirement-btn">✏️ Editar</button>
                 <button type="button" class="btn btn-danger" id="delete-requirement-btn">🗑️ Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT REQUIREMENT MODAL -->
+    <div id="edit-requirement-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>✏️ Editar Requisito</h2>
+                <button class="btn-close" data-modal="edit-requirement-modal">×</button>
+            </div>
+            
+            <form id="edit-requirement-form">
+                <div class="modal-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; background-color: #E3F2FD; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; border-left: 4px solid #1976D2;">
+                        <div>
+                            <label style="color: #1565C0; font-weight: 600; font-size: 0.9rem;">ID</label>
+                            <input type="text" id="edit-req-id" readonly style="background-color: white; border: 1px solid #90CAF9; cursor: not-allowed; padding: 0.5rem;">
+                        </div>
+                        <div>
+                            <label style="color: #1565C0; font-weight: 600; font-size: 0.9rem;">Status Atual</label>
+                            <input type="text" id="edit-req-status" readonly style="background-color: white; border: 1px solid #90CAF9; cursor: not-allowed; padding: 0.5rem;">
+                        </div>
+                        <div>
+                            <label style="color: #1565C0; font-weight: 600; font-size: 0.9rem;">Versão</label>
+                            <input type="text" id="edit-req-version" readonly style="background-color: white; border: 1px solid #90CAF9; cursor: not-allowed; padding: 0.5rem;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-req-title">Título *</label>
+                        <input type="text" id="edit-req-title" name="title" maxlength="120" required>
+                        <span class="char-count">0/120</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-req-description">Descrição *</label>
+                        <textarea id="edit-req-description" name="description" rows="5" maxlength="1000" required></textarea>
+                        <span class="char-count">0/1000</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-req-user-story">História de Usuário</label>
+                        <textarea id="edit-req-user-story" name="userStory" rows="3" maxlength="500" placeholder="Como [papel], eu quero [ação], para que [benefício]"></textarea>
+                        <span class="char-count">0/500</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="edit-req-type">Tipo *</label>
+                            <select id="edit-req-type" name="type" required>
+                                <option value="">Selecione</option>
+                                <option value="functional">Funcional</option>
+                                <option value="non-functional">Não Funcional</option>
+                                <option value="technical">Técnico</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit-req-priority">Prioridade *</label>
+                            <select id="edit-req-priority" name="priority" required>
+                                <option value="">Selecione</option>
+                                <option value="high">Alta</option>
+                                <option value="medium">Média</option>
+                                <option value="low">Baixa</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="edit-req-sprint">Sprint</label>
+                            <select id="edit-req-sprint" name="sprint">
+                                <option value="">Não atribuído</option>
+                                <option value="sprint-12">Sprint 12</option>
+                                <option value="sprint-13">Sprint 13</option>
+                                <option value="sprint-14">Sprint 14</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit-req-assignee">Responsável</label>
+                            <select id="edit-req-assignee" name="assignee">
+                                <option value="">Não atribuído</option>
+                                <option value="user-1">João Silva</option>
+                                <option value="user-2">Maria Santos</option>
+                                <option value="user-3">Pedro Oliveira</option>
+                                <option value="user-4">Ana Costa</option>
+                                <option value="user-5">Carlos Mendes</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-req-tags">Tags</label>
+                        <input type="text" id="edit-req-tags" name="tags" placeholder="Ex: backend, api, security">
+                        <small>Separe as tags com vírgula</small>
+                    </div>
+                    
+                    <div style="background-color: #FFF3E0; border-left: 4px solid #F57C00; padding: 1rem; margin-top: 1.5rem; border-radius: 4px;">
+                        <strong>⚠️ Nota:</strong> ID, data de criação, criador e histórico não podem ser alterados. As mudanças serão registradas no histórico de auditoria.
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal="edit-requirement-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- REJECTION DETAILS MODAL -->
+    <div id="rejection-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h2>❌ Detalhes da Rejeição</h2>
+                <button class="btn-close" data-modal="rejection-modal">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div style="background-color: #FFEBEE; border-left: 4px solid #E53935; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+                        <div>
+                            <strong style="color: #C62828;">ID do Requisito:</strong>
+                            <span id="rejection-req-id">REQ-001</span>
+                        </div>
+                        <div>
+                            <strong style="color: #C62828;">Status:</strong>
+                            <span style="background-color: #EF5350; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600;">Rejeitado</span>
+                        </div>
+                    </div>
+                    <div>
+                        <strong style="color: #C62828;">Data da Rejeição:</strong>
+                        <span id="rejection-date">-</span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--gray-800); margin-bottom: 0.5rem;">Motivo da Rejeição</h4>
+                    <div style="background-color: #F5F5F5; border-left: 4px solid #FF9800; padding: 1rem; border-radius: 4px;">
+                        <p id="rejection-reason" style="margin: 0; color: var(--gray-700); line-height: 1.6;">Aguardando informações...</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--gray-800); margin-bottom: 0.5rem;">Próximos Passos</h4>
+                    <ol style="color: var(--gray-700); line-height: 1.8; padding-left: 1.5rem; margin: 0;">
+                        <li>Analise cuidadosamente o motivo da rejeição</li>
+                        <li>Faça as alterações necessárias no requisito</li>
+                        <li>Clique em "Editar Requisito" para atualizar</li>
+                        <li>Resubmeta para aprovação (status será "Pendente")</li>
+                    </ol>
+                </div>
+                
+                <div style="background-color: #E8F5E9; border-left: 4px solid #66BB6A; padding: 1rem; border-radius: 4px;">
+                    <strong>💡 Dica:</strong> Você pode editar quantas vezes precisar até que o requisito seja aprovado. Cada edição gera uma nova versão no sistema.
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal="rejection-modal">Fechar</button>
+                <button type="button" class="btn btn-warning" id="rejection-edit-btn" onclick="openEditModal(currentRejectionReqId)">✏️ Editar Requisito</button>
             </div>
         </div>
     </div>
